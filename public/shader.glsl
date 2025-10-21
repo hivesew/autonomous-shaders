@@ -33,7 +33,7 @@ vec2 swirl(vec2 uv, float time) {
     float angle = 0.5 * sin(time * 0.5) + length(uv) * 2.0;
     float r = length(uv);
     uv = vec2(uv.x * cos(angle) - uv.y * sin(angle),
-              uv.x * sin(angle) + uv.y * cos(angle)));
+              uv.x * sin(angle) + uv.y * cos(angle));
     return uv;
 }
 
