@@ -1,1 +1,1 @@
-This is the initial default shader.
+A swirling vortex of iridescent particles coalesces into a blooming, fractal-like flower, pulsating with cosmic light.
