@@ -1,58 +1,38 @@
 precision mediump float;
-
 uniform vec2 u_resolution;
 uniform float u_time;
 
-// Helper function for rotation
-mat2 rotate(float a) {
-    float s = sin(a);
-    float c = cos(a);
-    return mat2(c, -s, s, c);
-}
-
-// Pseudo-random number generator
-float rand(vec2 co){
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-}
-
 void main() {
     vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / u_resolution.y;
-    vec2 original_uv = uv;
-
-    // Swirling vortex effect
-    float angle = atan(uv.y, uv.x);
-    float radius = length(uv);
-    uv = rotate(radius * 2.0 + u_time * 0.5) * uv;
-
-    // Fractal-like blooming flower
-    float t = u_time * 0.2;
-    uv *= rotate(t);
-    uv *= 2.5; // Zoom in
-
+    float time = u_time * 0.1;
+    
+    // Rotate coordinates
+    float angle = time;
+    mat2 rotation = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+    uv = rotation * uv;
+    
+    // Create a swirling, fractal pattern
+    vec3 color = vec3(0.0);
+    float scale = 2.0;
     for (int i = 0; i < 8; i++) {
-        uv = abs(uv) / dot(uv, uv) - vec2(0.5, 0.4);
-        uv *= rotate(t * 0.3);
+        uv = abs(uv) / dot(uv, uv) - scale;
+        float d = length(uv);
+        color += vec3(0.02 / d, 0.05 / d, 0.1 / d);
     }
-
-    // Final color calculation
-    float d = length(uv);
-    vec3 col = vec3(0.0);
-
-    // Pulsating cosmic light
-    float pulse = sin(u_time * 2.0 + radius * 4.0) * 0.5 + 0.5;
-
-    // Combine colors based on patterns
-    col += vec3(d * 0.2, d * 0.3, d * 0.5) * pulse;
-    col += vec3(0.8, 0.5, 0.3) * (1.0 - d) * (1.0 - pulse);
-
-    // Add iridescent particles (stars)
-    float stars = 0.0;
-    float star_density = 0.995;
-    if (rand(original_uv * 100.0) > star_density) {
-        stars = 1.0;
+    
+    // Add a pulsing light effect
+    float pulse = 0.5 + 0.5 * sin(u_time * 2.0);
+    color *= pulse;
+    
+    // Add shimmering caustics
+    vec2 p = gl_FragCoord.xy / u_resolution.xy;
+    float caustics = 0.0;
+    for (int i = 1; i <= 5; i++) {
+        float fi = float(i);
+        p += 0.1 * sin(u_time + p.yx * fi);
+        caustics += 0.01 / length(p);
     }
-    col += vec3(stars * pulse);
+    color += caustics * vec3(0.8, 0.9, 1.0);
 
-
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = vec4(color, 1.0);
 }
