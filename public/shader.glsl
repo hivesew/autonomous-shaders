@@ -3,13 +3,6 @@ precision mediump float;
 uniform vec2 u_resolution;
 uniform float u_time;
 
-// Hash function to generate pseudo-random values
-float hash(vec2 p) {
-    p = fract(p * vec2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
-}
-
 // 2D Simplex noise for a more organic feel
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -43,78 +36,101 @@ float snoise(vec2 v) {
     return 130.0 * dot(m, g);
 }
 
-// Fractal Brownian Motion to create dune-like structures
+// Fractal Brownian Motion to create noise with multiple levels of detail
 float fbm(vec2 st) {
     float value = 0.0;
     float amplitude = 0.5;
     float frequency = 2.0;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         value += amplitude * snoise(st * frequency);
-        frequency *= 2.0;
-        amplitude *= 0.5;
+        frequency *= 2.1;
+        amplitude *= 0.45;
     }
     return value;
 }
 
+// Hash function to generate pseudo-random values
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
 void main() {
-    vec2 st = gl_FragCoord.xy / u_resolution.xy;
-    st.x *= u_resolution.x / u_resolution.y;
+    // Center and aspect-correct the coordinate system
+    vec2 st = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
 
-    // Create base sand dunes that shift slowly
-    vec2 dune_coord = st * 2.0;
-    float dune_pattern = fbm(dune_coord + vec2(u_time * 0.02, 0.0));
+    vec3 color = vec3(0.0);
 
-    // Create fine, wind-blown sand ripples on top
-    vec2 ripple_coord = st * 15.0;
-    float ripple_pattern = snoise(ripple_coord + vec2(u_time * 0.2, u_time * 0.1));
+    // --- Nebula ---
+    vec2 nebula_coord = st;
+    float angle = atan(nebula_coord.y, nebula_coord.x);
+    float dist_from_center = length(nebula_coord);
     
-    // Combine patterns for a rich sand texture
-    float sand = smoothstep(0.1, 0.6, dune_pattern + ripple_pattern * 0.1);
+    // Add a swirling motion to the nebula, stronger towards the center
+    nebula_coord += u_time * 0.05; // General drift
+    float swirl_strength = 0.2 / (dist_from_center + 0.5);
+    nebula_coord.x += sin(angle * 2.0 + u_time * 0.1) * swirl_strength;
+    nebula_coord.y += cos(angle * 2.0 + u_time * 0.1) * swirl_strength;
 
-    // --- Ephemeral Memory Visualization ---
-    float memory_cycle_duration = 10.0;
-    float time_in_cycle = mod(u_time, memory_cycle_duration);
-    float cycle_progress = time_in_cycle / memory_cycle_duration;
+    // Generate the base nebula cloud structure
+    float nebula_density = fbm(nebula_coord * 2.5);
     
-    // Use the cycle number to seed this memory event
-    float memory_id = floor(u_time / memory_cycle_duration);
+    // Color the nebula with a mix of deep space colors
+    vec3 nebula_color1 = vec3(0.1, 0.2, 0.5); // Deep Blue
+    vec3 nebula_color2 = vec3(0.6, 0.3, 0.8); // Purple/Pink
+    vec3 nebula_color = mix(nebula_color1, nebula_color2, smoothstep(0.3, 0.7, nebula_density));
     
-    // Generate a random, stable position for the memory event
-    vec2 memory_pos = vec2(hash(vec2(memory_id, 0.0)), hash(vec2(memory_id, 1.0)));
-    memory_pos = mix(vec2(0.1, 0.1), vec2(0.9, 0.9), memory_pos);
-    
-    // Create a ghostly, shimmering form for the memory
-    float dist_to_memory = distance(st, memory_pos * vec2(1.0, u_resolution.y/u_resolution.x));
-    float memory_shape = 1.0 - smoothstep(0.0, 0.3, dist_to_memory);
-    memory_shape *= (snoise(st * 30.0 + u_time) * 0.5 + 0.5); // Shimmering texture
-    
-    // The memory fades in and then dissolves completely
-    float memory_intensity = 0.0;
-    // Fade in for the first 20% of the cycle
-    memory_intensity = smoothstep(0.0, 0.2, cycle_progress); 
-    // Fade out for the last 80%
-    memory_intensity *= (1.0 - smoothstep(0.2, 1.0, cycle_progress)); 
-    
-    // Make the fade-out feel like dissolving by using noise
-    memory_intensity = smoothstep(0.0, 0.8, memory_intensity - hash(st*50.0 + memory_id) * 0.8);
+    color = mix(color, nebula_color, smoothstep(0.4, 0.6, nebula_density));
 
-    // --- Color Palette ---
-    vec3 sand_color_light = vec3(0.95, 0.85, 0.7);
-    vec3 sand_color_dark = vec3(0.6, 0.45, 0.3);
-    vec3 sky_color = vec3(0.1, 0.2, 0.4);
-    vec3 memory_color = vec3(0.7, 0.9, 1.0);
+    // --- Distant Stars / Cosmic Dust ---
+    float stars = 0.0;
+    vec2 star_grid = floor(st * 100.0);
+    float star_hash = hash(star_grid);
+    
+    // Create a sparse, twinkling starfield
+    if (star_hash > 0.995) {
+        vec2 star_pos = fract(st * 100.0) - 0.5;
+        float star_brightness = 1.0 - length(star_pos);
+        star_brightness = smoothstep(0.0, 1.0, star_brightness);
+        // Twinkle effect
+        stars = star_brightness * (sin(u_time * 2.0 + star_hash * 100.0) * 0.5 + 0.5);
+    }
+    color += vec3(stars);
 
-    // Base color from sand pattern
-    vec3 color = mix(sand_color_dark, sand_color_light, sand);
+    // --- Protostar Formation ---
+    // The star grows over the first 20 seconds
+    float star_size = mix(0.01, 0.2, smoothstep(0.0, 20.0, u_time)); 
+    float core_dist = distance(st, vec2(0.0));
     
-    // Add a hint of sky reflection in the darker parts of the dunes
-    color = mix(sky_color, color, smoothstep(0.45, 0.55, sand));
+    // A bright, glowing core
+    float core_glow = 1.0 / (core_dist * 200.0 + 1.0);
+    core_glow = pow(core_glow, 2.0);
+    
+    // A pulsating central body
+    float pulse = sin(u_time * 3.0) * 0.5 + 0.5;
+    float core_shape = smoothstep(star_size, star_size - 0.05, core_dist);
+    core_shape *= pulse * 0.5 + 0.5;
+    
+    vec3 star_color = vec3(1.0, 0.95, 0.8);
+    color += core_glow * star_color * 2.0; // Additive glow
+    color = mix(color, star_color, core_shape); // Mix in the core shape
 
-    // Blend the ephemeral memory over the top
-    color = mix(color, memory_color, memory_shape * memory_intensity * 0.7);
+    // --- God Rays ---
+    float rays = 0.0;
+    vec2 ray_coord = st;
+    float ray_angle = atan(ray_coord.y, ray_coord.x);
+    // Use noise to create uneven, shimmering rays
+    float ray_noise = snoise(vec2(ray_angle * 5.0, u_time * 0.5));
+    rays = smoothstep(0.5, 0.6, ray_noise) * 0.3;
+    rays /= (core_dist * 2.0 + 1.0); // Rays fade with distance
+    rays *= smoothstep(0.0, 0.5, core_dist); // Rays are stronger away from the core
     
-    // Final touch: Add a subtle vignette
-    float vignette = 1.0 - smoothstep(0.7, 1.5, length(st - 0.5));
-    
-    gl_FragColor = vec4(color * vignette, 1.0);
+    color += rays * star_color * (pulse * 0.5 + 0.5);
+
+    // --- Final Composition ---
+    color = pow(color, vec3(0.8)); // Simple tone mapping
+    color = clamp(color, 0.0, 1.0);
+
+    gl_FragColor = vec4(color, 1.0);
 }

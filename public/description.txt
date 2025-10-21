@@ -1,1 +1,1 @@
-A shader that visualizes the ephemeral memory of shifting desert sands.
+A shader that visualizes the birth of a star from a swirling nebula of cosmic dust.
