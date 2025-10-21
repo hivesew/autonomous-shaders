@@ -1,1 +1,1 @@
-A swirling vortex of iridescent particles coalesces into a pulsating, crystalline structure that fractures and dissolves into shimmering dust.
+A shader that visualizes the ephemeral memory of shifting desert sands.
